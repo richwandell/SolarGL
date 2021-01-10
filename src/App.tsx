@@ -1,7 +1,7 @@
 import css from './App.module.css';
 import {createRef, useEffect, useState} from "react";
-import {square, cube, SolarObj3d} from "./objs";
-import {coloredFragment, simpleVertexColored, coloredTexturedShadedFragment, coloredTexturedShadedVertex} from "./shaders";
+import {cube, SolarObj3d} from "./objs";
+import {coloredTexturedShadedFragment, coloredTexturedShadedVertex} from "./shaders";
 import {mat4} from "gl-matrix"
 import {load} from '@loaders.gl/core';
 import {GLTFLoader} from '@loaders.gl/gltf/dist/es6';
@@ -34,19 +34,20 @@ function App() {
     const canvasRef = createRef<HTMLCanvasElement>()
     const [running, setRunning] = useState(true)
 
-    function loadMesh(which: number, model: any): SolarObj3d {
-        let mesh = model.meshes[0]
-        let position = mesh?.primitives[0].attributes.POSITION.value
-        let indices = mesh?.primitives[0].indices.value
-        return {
-            dim: 3,
-            faces: position,
-            colors: [],
-            indices: indices,
-            normals: [],
-            textureCoords: []
-        }
-    }
+
+    // function loadMesh(which: number, model: any): SolarObj3d { // eslint-disable-line unused-vars
+    //     let mesh = model.meshes[0]
+    //     let position = mesh?.primitives[0].attributes.POSITION.value
+    //     let indices = mesh?.primitives[0].indices.value
+    //     return {
+    //         dim: 3,
+    //         faces: position,
+    //         colors: [],
+    //         indices: indices,
+    //         normals: [],
+    //         textureCoords: []
+    //     }
+    // }
 
     function createProgram(gl: WebGL2RenderingContext): Program {
         const vertexShader = gl.createShader(gl.VERTEX_SHADER) as WebGLShader
@@ -241,7 +242,6 @@ function App() {
 
         let suzanne: any,
             lastTime = 0,
-            rotation = 0.0,
             ticks = 0,
             middleButtonDown = false,
             mouseXLast = 0,
@@ -254,7 +254,7 @@ function App() {
         const gl = canvasRef.current.getContext('webgl') as WebGL2RenderingContext
         gl.viewport(0, 0, canvasRef.current.width, canvasRef.current.height)
         const programInfo = createProgram(gl)
-        const texture = loadTexture(gl, 'cubetexture.png')
+        loadTexture(gl, 'cubetexture.png')
 
         function run(time: number) {
             clear(gl)

@@ -1,3 +1,5 @@
+/* eslint-disable */
+
 export const simpleVertex = `
     attribute vec4 aVertexPosition;
 
