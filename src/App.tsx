@@ -1,6 +1,6 @@
 import css from './App.module.css';
 import {createRef, useEffect, useState} from "react";
-import {cube, SolarObj3d} from "./objs";
+import {SolarObj3d} from "./objs";
 import {coloredTexturedShadedFragment, coloredTexturedShadedVertex} from "./shaders";
 import {mat4} from "gl-matrix"
 import {load} from '@loaders.gl/core';
@@ -210,7 +210,7 @@ function App() {
     }
 
     function isPowerOf2(value: number) {
-        return (value & (value - 1)) == 0;
+        return (value & (value - 1)) === 0;
     }
 
     function drawFps(time: number, lastTime: number, ticks: number) {
@@ -378,6 +378,7 @@ function App() {
         return () => {
             setRunning(false)
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [canvasRef, running])
 
     return (
