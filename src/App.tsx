@@ -35,19 +35,21 @@ function App() {
     const [running, setRunning] = useState(true)
 
 
-    // function loadMesh(which: number, model: any): SolarObj3d { // eslint-disable-line unused-vars
-    //     let mesh = model.meshes[0]
-    //     let position = mesh?.primitives[0].attributes.POSITION.value
-    //     let indices = mesh?.primitives[0].indices.value
-    //     return {
-    //         dim: 3,
-    //         faces: position,
-    //         colors: [],
-    //         indices: indices,
-    //         normals: [],
-    //         textureCoords: []
-    //     }
-    // }
+    function loadMesh(which: number, model: any): SolarObj3d {
+        let mesh = model.meshes[which]
+        let position = mesh?.primitives[0].attributes.POSITION.value
+        let indices = mesh?.primitives[0].indices.value
+        let normals = mesh?.primitives[0].attributes.NORMAL.value
+        let textureCoords = mesh.primitives[0].attributes.TEXCOORD_0.value
+        return {
+            dim: 3,
+            faces: position,
+            colors: [],
+            indices: indices,
+            normals: normals,
+            textureCoords: textureCoords
+        }
+    }
 
     function createProgram(gl: WebGL2RenderingContext): Program {
         const vertexShader = gl.createShader(gl.VERTEX_SHADER) as WebGLShader
@@ -189,6 +191,28 @@ function App() {
             programInfo.attribLocations.vertexNormal);
     }
 
+    function setTextureBuffer(gl: WebGL2RenderingContext, buffers: Buffers, programInfo: Program) {
+        const numComponents = 2;
+        const type = gl.FLOAT;
+        const normalize = false;
+        const stride = 0;
+        const offset = 0;
+        gl.bindBuffer(gl.ARRAY_BUFFER, buffers.textureCoord);
+        gl.vertexAttribPointer(
+            programInfo.attribLocations.textureCoord,
+            numComponents,
+            type,
+            normalize,
+            stride,
+            offset);
+        gl.enableVertexAttribArray(
+            programInfo.attribLocations.textureCoord);
+    }
+
+    function isPowerOf2(value: number) {
+        return (value & (value - 1)) == 0;
+    }
+
     function drawFps(time: number, lastTime: number, ticks: number) {
         if (ticks % 10 === 0) {
             //@ts-ignore
@@ -211,27 +235,24 @@ function App() {
             width, height, border, srcFormat, srcType,
             pixel);
 
-        // const image = new Image();
-        // image.onload = function() {
-        //     gl.bindTexture(gl.TEXTURE_2D, texture);
-        //     gl.texImage2D(gl.TEXTURE_2D, level, internalFormat,
-        //         srcFormat, srcType, image);
-        //
-        //     // WebGL1 has different requirements for power of 2 images
-        //     // vs non power of 2 images so check if the image is a
-        //     // power of 2 in both dimensions.
-        //     if (isPowerOf2(image.width) && isPowerOf2(image.height)) {
-        //         // Yes, it's a power of 2. Generate mips.
-        //         gl.generateMipmap(gl.TEXTURE_2D);
-        //     } else {
-        //         // No, it's not a power of 2. Turn of mips and set
-        //         // wrapping to clamp to edge
-        //         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-        //         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-        //         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-        //     }
-        // };
-        // image.src = url;
+        const image = new Image();
+        image.onload = function() {
+            gl.bindTexture(gl.TEXTURE_2D, texture);
+            gl.texImage2D(gl.TEXTURE_2D, level, internalFormat,
+                srcFormat, srcType, image);
+
+            if (isPowerOf2(image.width) && isPowerOf2(image.height)) {
+                // Yes, it's a power of 2. Generate mips.
+                gl.generateMipmap(gl.TEXTURE_2D);
+            } else {
+                // No, it's not a power of 2. Turn of mips and set
+                // wrapping to clamp to edge
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+            }
+        };
+        image.src = url;
 
         return texture;
     }
@@ -249,12 +270,13 @@ function App() {
             mouseYLast = 0,
             yRotation = 0,
             mesh: SolarObj3d,
-            buffers: Buffers
+            buffers: Buffers,
+            zLocation = -6.0
 
         const gl = canvasRef.current.getContext('webgl') as WebGL2RenderingContext
         gl.viewport(0, 0, canvasRef.current.width, canvasRef.current.height)
         const programInfo = createProgram(gl)
-        loadTexture(gl, 'cubetexture.png')
+        loadTexture(gl, 'Suzanne.png')
 
         function run(time: number) {
             clear(gl)
@@ -262,7 +284,7 @@ function App() {
 
             mat4.translate(modelViewMatrix,     // destination matrix
                 modelViewMatrix,     // matrix to translate
-                [-0.0, 0.0, -6.0]);  // amount to translate
+                [-0.0, 0.0, zLocation || -6.0]);  // amount to translate
             mat4.rotate(modelViewMatrix,  // destination matrix
                 modelViewMatrix,  // matrix to rotate
                 yRotation / 15,     // amount to rotate in radians
@@ -274,25 +296,7 @@ function App() {
 
             setPositionBuffer(mesh, gl, buffers, programInfo)
             setColorBuffer(gl, buffers, programInfo)
-            // Tell WebGL how to pull out the texture coordinates from
-            // the texture coordinate buffer into the textureCoord attribute.
-            {
-                const numComponents = 2;
-                const type = gl.FLOAT;
-                const normalize = false;
-                const stride = 0;
-                const offset = 0;
-                gl.bindBuffer(gl.ARRAY_BUFFER, buffers.textureCoord);
-                gl.vertexAttribPointer(
-                    programInfo.attribLocations.textureCoord,
-                    numComponents,
-                    type,
-                    normalize,
-                    stride,
-                    offset);
-                gl.enableVertexAttribArray(
-                    programInfo.attribLocations.textureCoord);
-            }
+            setTextureBuffer(gl, buffers, programInfo)
             setNormalBuffer(gl, buffers, programInfo)
             gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buffers.indices);
             gl.useProgram(programInfo.program);
@@ -330,11 +334,10 @@ function App() {
         }
 
         (async () => {
-            suzanne = await load("untitled.gltf", GLTFLoader);
+            suzanne = await load("untitled1.gltf", GLTFLoader);
 
             console.log(suzanne)
-            // mesh = loadMesh(0, suzanne)
-            mesh = cube
+            mesh = loadMesh(0, suzanne)
             console.log(mesh)
             buffers = createBuffers(mesh, gl)
             run(0)
@@ -342,6 +345,8 @@ function App() {
 
         canvasRef.current.addEventListener("mousedown", (event) => {
             if (event.button === 1) {
+                mouseXLast = event.clientX
+                mouseYLast = event.clientY
                 middleButtonDown = true
             }
             event.preventDefault()
@@ -364,6 +369,12 @@ function App() {
             event.preventDefault()
         })
 
+        canvasRef.current.addEventListener("wheel", (event) => {
+            console.log(event)
+            zLocation -= event.deltaY * 0.01
+            event.preventDefault()
+        })
+
         return () => {
             setRunning(false)
         }
@@ -371,8 +382,8 @@ function App() {
 
     return (
         <>
-            <span id={"fps"}>0</span>
             <canvas width={1920} height={1080} className={css.canvas} ref={canvasRef}/>
+            <span id={"fps"} className={css.fps}>0</span>
         </>
     );
 }
