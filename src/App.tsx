@@ -291,27 +291,46 @@ function App() {
             meshes: SolarObj3d[],
             buffers: Buffers[],
             zLocation = -10.0,
-            running = true
+            running = true,
+            leftDown = false,
+            xTranslationValue = 0,
+            rightDown = false,
+            upDown = false,
+            downDown = false,
+            yTranslationValue = 0
+
 
         const gl = canvasRef.current.getContext('webgl2') as WebGL2RenderingContext
         gl.viewport(0, 0, canvasRef.current.width, canvasRef.current.height)
+        gl.enable(gl.SAMPLE_COVERAGE);
+        gl.sampleCoverage(1.0, false);
         const programInfo = createProgram(gl)
 
         function run(time: number) {
             clear(gl)
+            if (leftDown) xTranslationValue -= 0.5
+            if (rightDown) xTranslationValue += 0.5
+            if (upDown) yTranslationValue += 0.5
+            if (downDown) yTranslationValue -= 0.5
+
             const {projectionMatrix, modelViewMatrix, normalMatrix} = createMatrices(gl)
 
-            mat4.translate(modelViewMatrix,     // destination matrix
-                modelViewMatrix,     // matrix to translate
+            mat4.translate(projectionMatrix,     // destination matrix
+                projectionMatrix,     // matrix to translate
                 [-0.0, 0.0, zLocation]);  // amount to translate
-            mat4.rotate(modelViewMatrix,  // destination matrix
-                modelViewMatrix,  // matrix to rotate
+            mat4.rotate(projectionMatrix,  // destination matrix
+                projectionMatrix,  // matrix to rotate
                 yRotation / 15,     // amount to rotate in radians
                 [1, 0, 0]);       // axis to rotate around (Z)
-            mat4.rotate(modelViewMatrix,  // destination matrix
-                modelViewMatrix,  // matrix to rotate
+            mat4.rotate(projectionMatrix,  // destination matrix
+                projectionMatrix,  // matrix to rotate
                 xRotation / 15,// amount to rotate in radians
                 [0, 1, 0]);       // axis to rotate around (X)
+
+            mat4.translate(modelViewMatrix,
+                modelViewMatrix,
+                [xTranslationValue, yTranslationValue, 0.0]);
+
 
             for (let i = 0; i < buffers.length; i++) {
                 gl.useProgram(programInfo.program);
@@ -391,7 +410,33 @@ function App() {
             event.preventDefault()
         })
 
+        function documentKeyDown(event: KeyboardEvent) {
+            if (event.code === "ArrowLeft") {
+                leftDown = true
+            } else if (event.code === "ArrowRight") {
+                rightDown = true
+            } else if (event.code === "ArrowUp") {
+                upDown = true
+            } else if (event.code === "ArrowDown") {
+                downDown = true
+            }
+            event.preventDefault()
+        }
+
+        function documentKeyUp(event: KeyboardEvent){
+            leftDown = false
+            rightDown = false
+            upDown = false
+            downDown = false
+            event.preventDefault()
+        }
+
+        document.addEventListener("keydown", documentKeyDown)
+        document.addEventListener("keyup", documentKeyUp)
+
         return () => {
+            document.removeEventListener("keydown", documentKeyDown)
+            document.removeEventListener("keyup", documentKeyUp)
             running = false
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
