@@ -4,7 +4,7 @@ import {SolarObj3d} from "./objs";
 import {coloredTexturedShadedFragment, coloredTexturedShadedVertex} from "./shaders";
 import {mat4} from "gl-matrix"
 import {load} from '@loaders.gl/core';
-import {GLTFLoader} from '@loaders.gl/gltf/dist/es6';
+import {GLTFLoader, GLBLoader} from '@loaders.gl/gltf/dist/es6';
 
 type Buffers = {
     position: WebGLBuffer,
@@ -30,13 +30,11 @@ type Program = {
     }
 }
 
-const DEFAULT_SCENE = "suzanne.gltf.json";
+const DEFAULT_SCENE = "scenes/suzanne/suzanne.gltf";
 
 function App() {
     const canvasRef = createRef<HTMLCanvasElement>()
-    const [running, setRunning] = useState(true)
     const [selectedScene, setSelectedScene] = useState(DEFAULT_SCENE)
-
 
     function loadMesh(which: number, model: any): SolarObj3d[] {
         let mesh = model.meshes[which]
@@ -283,7 +281,6 @@ function App() {
     useEffect(() => {
         if (!canvasRef.current) return;
 
-
         let lastTime = 0,
             ticks = 0,
             middleButtonDown = false,
@@ -293,7 +290,8 @@ function App() {
             yRotation = 0,
             meshes: SolarObj3d[],
             buffers: Buffers[],
-            zLocation = -6.0
+            zLocation = -10.0,
+            running = true
 
         const gl = canvasRef.current.getContext('webgl2') as WebGL2RenderingContext
         gl.viewport(0, 0, canvasRef.current.width, canvasRef.current.height)
@@ -353,7 +351,7 @@ function App() {
         }
 
         (async () => {
-            const data = await load(selectedScene, GLTFLoader);
+            const data = await load(selectedScene, selectedScene.endsWith(".glb") ? GLBLoader : GLTFLoader);
             console.log(data)
             meshes = loadMesh(0, data)
             console.log(meshes)
@@ -394,10 +392,10 @@ function App() {
         })
 
         return () => {
-            setRunning(false)
+            running = false
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [canvasRef, running, selectedScene])
+    }, [canvasRef, selectedScene])
 
     return (
         <>
@@ -405,7 +403,8 @@ function App() {
             <span id={"fps"} className={css.fps}>0</span>
             <select className={css.selectBox} defaultValue={DEFAULT_SCENE} onChange={(event) => setSelectedScene(event.target.value)}>
                 <option value={DEFAULT_SCENE}>Suzanne</option>
-                <option value={"tank.gltf"}>Tank</option>
+                <option value={"scenes/tank/tank.gltf"}>Tank</option>
+                <option value={"scenes/bottle/bottle.gltf"}>Bottle</option>
             </select>
         </>
     );
