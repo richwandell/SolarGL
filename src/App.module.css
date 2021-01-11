@@ -8,3 +8,8 @@
     position: absolute;
     color: white;
 }
+
+.selectBox {
+    position: absolute;
+    right: 0;
+}

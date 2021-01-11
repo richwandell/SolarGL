@@ -10,7 +10,8 @@ export type SolarObj3d = {
     colors: number[],
     indices: number[],
     normals: number[],
-    textureCoords: number[]
+    textureCoords: number[],
+    image: ImageBitmap | undefined
 }
 
 export const triangle: SolarObj2d = {
@@ -166,6 +167,7 @@ export const cube: SolarObj3d = {
         1.0,  0.0,
         1.0,  1.0,
         0.0,  1.0,
-    ]
+    ],
+    image: undefined
 }
 
