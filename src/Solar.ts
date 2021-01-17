@@ -2,38 +2,67 @@ import {SolarObj3d} from "./objs";
 import {coloredTexturedShadedFragment, coloredTexturedShadedVertex} from "./shaders";
 import {mat4} from "gl-matrix";
 import {Program, Buffers} from "./types";
+import {load} from "@loaders.gl/core";
+import {GLBLoader, GLTFLoader} from "@loaders.gl/gltf/dist/es6";
+import loadScene from "./functions/loadScene";
+import SolarMesh from "./SolarMesh";
+import createBuffers from "./functions/createBuffers";
 
 
 class Solar {
 
-    private canvas: HTMLCanvasElement;
+    private readonly canvas: HTMLCanvasElement;
+    private readonly gl: WebGL2RenderingContext;
+    private meshes: SolarMesh[] = [];
+    private buffers: Buffers[] = [];
+    private program: Program;
 
     constructor(canvas: HTMLCanvasElement) {
         this.canvas = canvas
+        this.gl = canvas.getContext('webgl2') as WebGL2RenderingContext
+        this.gl.viewport(0, 0, this.canvas.width, this.canvas.height)
+        this.gl.enable(this.gl.SAMPLE_COVERAGE);
+        this.gl.sampleCoverage(1.0, false);
+        this.program = this.createProgram(this.gl)
     }
 
-    private loadMesh(which: number, model: any): SolarObj3d[] {
-        let mesh = model.meshes[which]
+    destroy() {
 
-        let meshes = [];
-        for (let primitive of mesh.primitives) {
-            let position = primitive.attributes.POSITION.value
-            let indices = primitive.indices.value
-            let normals = primitive.attributes.NORMAL.value
-            let textureCoords = primitive.attributes.TEXCOORD_0.value
-            let imageData = primitive?.material?.pbrMetallicRoughness?.baseColorTexture?.texture?.source?.image
-            meshes.push({
-                dim: 3,
-                faces: position,
-                colors: [],
-                indices: indices,
-                normals: normals,
-                textureCoords: textureCoords,
-                image: imageData
-            })
-        }
-        return meshes
     }
+
+    public async loadScene(sceneName: string) {
+        const data = await load(sceneName, sceneName.endsWith(".glb") ? GLBLoader : GLTFLoader);
+        console.log(data)
+        const scene = loadScene(data)
+        this.meshes = scene.meshes
+        createBuffers(this.meshes, this.gl)
+        console.log(this.meshes)
+        // this.buffers = this.createBuffers(this.meshes, this.gl)
+        // this.loadTexture(this.meshes, this.gl)
+    }
+
+    // private loadScene(model: any): SolarObj3d[] {
+    //     let mesh = model.meshes[which]
+    //
+    //     let meshes = [];
+    //     for (let primitive of mesh.primitives) {
+    //         let position = primitive.attributes.POSITION.value
+    //         let indices = primitive.indices.value
+    //         let normals = primitive.attributes.NORMAL.value
+    //         let textureCoords = primitive.attributes.TEXCOORD_0.value
+    //         let imageData = primitive?.material?.pbrMetallicRoughness?.baseColorTexture?.texture?.source?.image
+    //         meshes.push({
+    //             dim: 3,
+    //             faces: position,
+    //             colors: [],
+    //             indices: indices,
+    //             normals: normals,
+    //             textureCoords: textureCoords,
+    //             image: imageData
+    //         })
+    //     }
+    //     return meshes
+    // }
 
     private createProgram(gl: WebGL2RenderingContext): Program {
         const vertexShader = gl.createShader(gl.VERTEX_SHADER) as WebGLShader
@@ -248,7 +277,67 @@ class Solar {
         return textures;
     }
 
-    private render() {
+    private render(time: number) {
+        this.clear(this.gl)
+        // if (leftDown) xTranslationValue -= 0.5
+        // if (rightDown) xTranslationValue += 0.5
+        // if (upDown) yTranslationValue += 0.5
+        // if (downDown) yTranslationValue -= 0.5
+        //
+        // const {projectionMatrix, modelViewMatrix, normalMatrix} = this.createMatrices(this.gl)
+        //
+        // mat4.translate(projectionMatrix,     // destination matrix
+        //     projectionMatrix,     // matrix to translate
+        //     [-0.0, 0.0, zLocation]);  // amount to translate
+        // mat4.rotate(projectionMatrix,  // destination matrix
+        //     projectionMatrix,  // matrix to rotate
+        //     yRotation / 15,     // amount to rotate in radians
+        //     [1, 0, 0]);       // axis to rotate around (Z)
+        // mat4.rotate(projectionMatrix,  // destination matrix
+        //     projectionMatrix,  // matrix to rotate
+        //     xRotation / 15,// amount to rotate in radians
+        //     [0, 1, 0]);       // axis to rotate around (X)
+        //
+        // mat4.translate(modelViewMatrix,
+        //     modelViewMatrix,
+        //     [xTranslationValue, yTranslationValue, 0.0]);
+        //
+        //
+        // for (let i = 0; i < buffers.length; i++) {
+        //     gl.useProgram(programInfo.program);
+        //     setPositionBuffer(meshes[i], gl, buffers[i], programInfo)
+        //     setColorBuffer(gl, buffers[i], programInfo)
+        //     setTextureBuffer(gl, buffers[i], programInfo)
+        //     setNormalBuffer(gl, buffers[i], programInfo)
+        //
+        //     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buffers[i].indices);
+        //
+        //     gl.uniformMatrix4fv(
+        //         programInfo.uniformLocations.projectionMatrix,
+        //         false,
+        //         projectionMatrix);
+        //     gl.uniformMatrix4fv(
+        //         programInfo.uniformLocations.modelViewMatrix,
+        //         false,
+        //         modelViewMatrix);
+        //     gl.uniformMatrix4fv(
+        //         programInfo.uniformLocations.normalMatrix,
+        //         false,
+        //         normalMatrix);
+        //
+        //     const vertexCount = meshes[i].indices.length;
+        //     const type = gl.UNSIGNED_SHORT;
+        //     const offset = 0;
+        //     gl.drawElements(gl.TRIANGLES, vertexCount, type, offset);
+        // }
+        //
+        // drawFps(time, lastTime, ticks)
+        // lastTime = time
+        // ticks += 1
+        // if (ticks > 5) ticks = 0;
+        // if (running) {
+        //     requestAnimationFrame(run)
+        // }
         requestAnimationFrame(this.render)
     }
 

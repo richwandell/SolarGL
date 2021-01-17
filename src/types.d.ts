@@ -21,3 +21,24 @@ export type Program = {
         uSampler: WebGLUniformLocation
     }
 }
+
+export type Material = {
+    textureCoords: number[],
+    imageData: ImageData | undefined
+}
+
+export type SolarMeshPrimitive = {
+    dim: number,
+    faces: number[],
+    colors: number[],
+    indices: number[],
+    normals: number[],
+    materials: Material[],
+    buffers: Buffers | undefined
+}
+
+export type SolarMesh = {
+    id: string,
+    name: string,
+    primitives: SolarMeshPrimitive[]
+}
