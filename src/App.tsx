@@ -31,9 +31,13 @@ function App() {
         } else if (selectedScene.endsWith("bottle.gltf")) {
             camera.translation = [0, 0, -20]
             characterMeshName = "Circle";
-        } else {
+        } else if (selectedScene.endsWith("stewarts-antique-record-player.gltf")) {
             camera.translation = [0, -.5, -2]
             characterMeshName = "Antique_Record_Player";
+        } else if (selectedScene.endsWith("woman.gltf")) {
+            characterMeshName = "Girl";
+        } else {
+            characterMeshName = "Thing"
         }
         app.setCamera(camera)
         const character = app.getMesh(characterMeshName)

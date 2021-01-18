@@ -25,8 +25,7 @@ class Solar extends Listener {
         this.canvas = canvas
         this.gl = canvas.getContext('webgl2') as WebGL2RenderingContext
         this.gl.viewport(0, 0, this.canvas.width, this.canvas.height)
-        this.gl.enable(this.gl.SAMPLE_COVERAGE);
-        this.gl.sampleCoverage(1.0, false);
+
         this.camera = {
             id: "",
             name: "",
@@ -275,6 +274,14 @@ class Solar extends Listener {
                     program.uniformLocations.normalMatrix,
                     false,
                     normalMatrix);
+
+                gl.enable(gl.SAMPLE_COVERAGE);
+                gl.enable(gl.DEPTH_TEST)
+                gl.enable(gl.BLEND);
+                gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+                gl.enable(gl.CULL_FACE);
+                gl.cullFace(gl.BACK);
+                gl.sampleCoverage(1.0, false);
 
                 const vertexCount = mesh.primitives[i].indices.length;
                 const type = gl.UNSIGNED_SHORT;

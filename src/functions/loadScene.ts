@@ -21,10 +21,8 @@ export default async function loadScene (solar: Solar, sceneName: string, data: 
                 let normals = primitive.attributes.NORMAL.value
                 let colors: number[] = [];
                 if (primitive?.material?.pbrMetallicRoughness?.baseColorFactor) {
-                    for (let i = 0; i < indices.length; i++){
-                        let cf = primitive?.material?.pbrMetallicRoughness?.baseColorFactor;
-                        colors = colors.concat(cf)
-                    }
+                    let cf = primitive?.material?.pbrMetallicRoughness?.baseColorFactor;
+                    colors = cf
                 }
 
                 let materials = [];
