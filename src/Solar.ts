@@ -1,130 +1,89 @@
-import {SolarObj3d} from "./objs";
-import {coloredTexturedShadedFragment, coloredTexturedShadedVertex} from "./shaders";
-import {mat4} from "gl-matrix";
-import {Program, Buffers} from "./types";
+import {mat4, ReadonlyQuat, ReadonlyVec3, quat} from "gl-matrix";
+import {ColoredProgram, SolarMeshPrimitive, SolarObject, TexturedProgram} from "./types";
 import {load} from "@loaders.gl/core";
 import {GLBLoader, GLTFLoader} from "@loaders.gl/gltf/dist/es6";
 import loadScene from "./functions/loadScene";
 import SolarMesh from "./SolarMesh";
 import createBuffers from "./functions/createBuffers";
+import loadTextures from "./functions/loadTextures";
+import createPrograms from "./functions/createPrograms";
+import Listener from "./Listener";
 
 
-class Solar {
+class Solar extends Listener {
 
     private readonly canvas: HTMLCanvasElement;
     private readonly gl: WebGL2RenderingContext;
     private meshes: SolarMesh[] = [];
-    private buffers: Buffers[] = [];
-    private program: Program;
+    private eventListeners: {[key: string]: Function} = {}
+    private running: boolean = false;
+    private objects: SolarObject[] = [];
+    private camera: SolarObject;
 
     constructor(canvas: HTMLCanvasElement) {
+        super(canvas as HTMLElement);
         this.canvas = canvas
         this.gl = canvas.getContext('webgl2') as WebGL2RenderingContext
         this.gl.viewport(0, 0, this.canvas.width, this.canvas.height)
         this.gl.enable(this.gl.SAMPLE_COVERAGE);
         this.gl.sampleCoverage(1.0, false);
-        this.program = this.createProgram(this.gl)
+        this.camera = {
+            id: "",
+            name: "",
+            rotation: [0,0,0,0],
+            translation: [0,0,-20.0]
+        }
+    }
+
+    public onTick(handler: Function) {
+        this.eventListeners["tick"] = handler
+    }
+
+    private quatToEul(quat: number[]) {
+        const q0 = quat[0];
+        const q1 = quat[1];
+        const q2 = quat[2];
+        const q3 = quat[3];
+
+        const Rx = Math.atan2(2 * (q0 * q1 + q2 * q3), 1 - (2 * (q1 * q1 + q2 * q2)));
+        const Ry = Math.asin(2 * (q0 * q2 - q3 * q1));
+        const Rz = Math.atan2(2 * (q0 * q3 + q1 * q2), 1 - (2  * (q2 * q2 + q3 * q3)));
+
+        const euler = [Rx, Ry, Rz];
+        return euler;
     }
 
     destroy() {
-
+        this.running = false;
+        super.destroy()
     }
 
-    public async loadScene(sceneName: string) {
-        const data = await load(sceneName, sceneName.endsWith(".glb") ? GLBLoader : GLTFLoader);
+    public async loadScene(sceneName: string, file: string) {
+        const data = await load(file, file.endsWith(".glb") ? GLBLoader : GLTFLoader);
         console.log(data)
-        const scene = loadScene(data)
+        const scene = await loadScene(this, sceneName, data)
         this.meshes = scene.meshes
+        this.objects = scene.otherObjects
+        createPrograms(this.meshes, this.gl)
         createBuffers(this.meshes, this.gl)
-        console.log(this.meshes)
-        // this.buffers = this.createBuffers(this.meshes, this.gl)
-        // this.loadTexture(this.meshes, this.gl)
+        loadTextures(this.meshes, this.gl)
     }
 
-    // private loadScene(model: any): SolarObj3d[] {
-    //     let mesh = model.meshes[which]
-    //
-    //     let meshes = [];
-    //     for (let primitive of mesh.primitives) {
-    //         let position = primitive.attributes.POSITION.value
-    //         let indices = primitive.indices.value
-    //         let normals = primitive.attributes.NORMAL.value
-    //         let textureCoords = primitive.attributes.TEXCOORD_0.value
-    //         let imageData = primitive?.material?.pbrMetallicRoughness?.baseColorTexture?.texture?.source?.image
-    //         meshes.push({
-    //             dim: 3,
-    //             faces: position,
-    //             colors: [],
-    //             indices: indices,
-    //             normals: normals,
-    //             textureCoords: textureCoords,
-    //             image: imageData
-    //         })
-    //     }
-    //     return meshes
-    // }
-
-    private createProgram(gl: WebGL2RenderingContext): Program {
-        const vertexShader = gl.createShader(gl.VERTEX_SHADER) as WebGLShader
-        gl.shaderSource(vertexShader, coloredTexturedShadedVertex)
-        gl.compileShader(vertexShader)
-
-        const fragmentShader = gl.createShader(gl.FRAGMENT_SHADER) as WebGLShader
-        gl.shaderSource(fragmentShader, coloredTexturedShadedFragment)
-        gl.compileShader(fragmentShader)
-
-        const shaderProgram = gl.createProgram() as WebGLProgram
-        gl.attachShader(shaderProgram, vertexShader)
-        gl.attachShader(shaderProgram, fragmentShader)
-        gl.linkProgram(shaderProgram)
-
-        return {
-            program: shaderProgram as WebGLProgram,
-            attribLocations: {
-                vertexPosition: gl.getAttribLocation(shaderProgram, 'aVertexPosition'),
-                vertexColor: gl.getAttribLocation(shaderProgram, 'aVertexColor'),
-                vertexNormal: gl.getAttribLocation(shaderProgram, 'aVertexNormal'),
-                textureCoord: gl.getAttribLocation(shaderProgram, 'aTextureCoord')
-            },
-            uniformLocations: {
-                projectionMatrix: gl.getUniformLocation(shaderProgram, 'uProjectionMatrix') as WebGLUniformLocation,
-                modelViewMatrix: gl.getUniformLocation(shaderProgram, 'uModelViewMatrix') as WebGLUniformLocation,
-                normalMatrix: gl.getUniformLocation(shaderProgram, 'uNormalMatrix') as WebGLUniformLocation,
-                uSampler: gl.getUniformLocation(shaderProgram, 'uSampler') as WebGLUniformLocation,
-            },
-        }
+    public getMesh(name: string): SolarMesh {
+        return this.meshes.find(x => x.name === name) as SolarMesh
     }
 
-    private createBuffers(items: SolarObj3d[], gl: WebGL2RenderingContext): Buffers[] {
-        let buffers = [];
-        for (let item of items) {
-            const positionBuffer = gl.createBuffer();
-            gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(item.faces), gl.STATIC_DRAW);
-            const colorBuffer = gl.createBuffer();
-            gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
-            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(item.colors), gl.STATIC_DRAW);
-            const indexBuffer = gl.createBuffer();
-            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
-            gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,
-                new Uint16Array(item.indices), gl.STATIC_DRAW);
-            const normalBuffer = gl.createBuffer();
-            gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
-            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(item.normals),
-                gl.STATIC_DRAW);
-            const textureCoordBuffer = gl.createBuffer();
-            gl.bindBuffer(gl.ARRAY_BUFFER, textureCoordBuffer);
-            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(item.textureCoords),
-                gl.STATIC_DRAW);
-            buffers.push({
-                position: positionBuffer as WebGLBuffer,
-                color: colorBuffer as WebGLBuffer,
-                indices: indexBuffer as WebGLBuffer,
-                normal: normalBuffer as WebGLBuffer,
-                textureCoord: textureCoordBuffer as WebGLBuffer
-            })
+    public getCamera(name?: string|null): SolarObject {
+        let cam = this.objects.find(x => x.name === name) as SolarObject
+
+        if (cam !== undefined) {
+            return cam;
         }
-        return buffers
+        return this.camera;
+    }
+
+    public setCamera(object: SolarObject) {
+        this.camera = object;
     }
 
     private clear(gl: WebGL2RenderingContext) {
@@ -135,7 +94,7 @@ class Solar {
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
     }
 
-    private createMatrices(gl: WebGL2RenderingContext) {
+    private createProjectionMatrix(gl: WebGL2RenderingContext) {
         const fieldOfView = 45 * Math.PI / 180;   // in radians
         // @ts-ignore
         const aspect = gl.canvas.clientWidth / gl.canvas.clientHeight;
@@ -143,206 +102,199 @@ class Solar {
         const zFar = 100.0;
         const projectionMatrix = mat4.create()
         mat4.perspective(projectionMatrix, fieldOfView, aspect, zNear, zFar)
-        const modelViewMatrix = mat4.create();
-        const normalMatrix = mat4.create();
-        mat4.invert(normalMatrix, modelViewMatrix);
-        mat4.transpose(normalMatrix, normalMatrix);
-        return {
-            projectionMatrix,
-            modelViewMatrix,
-            normalMatrix
-        }
+        return projectionMatrix;
     }
 
-    private setPositionBuffer(item: SolarObj3d, gl: WebGL2RenderingContext, buffers: Buffers, program: Program) {
+
+    private setPositionBuffer(item: SolarMeshPrimitive, buffer: WebGLBuffer, program: ColoredProgram|TexturedProgram) {
         const numComponents = item.dim;
-        const type = gl.FLOAT;    // the data in the buffer is 32bit floats
+        const type = this.gl.FLOAT;    // the data in the buffer is 32bit floats
         const normalize = false;  // don't normalize
         const stride = 0;         // how many bytes to get from one set of values to the next
                                   // 0 = use type and numComponents above
         const offset = 0;         // how many bytes inside the buffer to start from
-        gl.bindBuffer(gl.ARRAY_BUFFER, buffers.position);
-        gl.vertexAttribPointer(
+        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, buffer);
+        this.gl.vertexAttribPointer(
             program.attribLocations.vertexPosition,
             numComponents,
             type,
             normalize,
             stride,
             offset);
-        gl.enableVertexAttribArray(program.attribLocations.vertexPosition);
+        this.gl.enableVertexAttribArray(program.attribLocations.vertexPosition);
     }
 
-    private setColorBuffer(gl: WebGL2RenderingContext, buffers: Buffers, program: Program) {
-        const numComponents = 4;
-        const type = gl.FLOAT;
-        const normalize = false;
-        const stride = 0;
-        const offset = 0;
-        gl.bindBuffer(gl.ARRAY_BUFFER, buffers.color);
-        gl.vertexAttribPointer(
-            program.attribLocations.vertexColor,
-            numComponents,
-            type,
-            normalize,
-            stride,
-            offset);
-        gl.enableVertexAttribArray(
-            program.attribLocations.vertexColor);
-    }
-
-    private setNormalBuffer(gl: WebGL2RenderingContext, buffers: Buffers, programInfo: Program) {
+    private setNormalBuffer(buffer: WebGLBuffer, program: ColoredProgram|TexturedProgram) {
         const numComponents = 3;
-        const type = gl.FLOAT;
+        const type = this.gl.FLOAT;
         const normalize = false;
         const stride = 0;
         const offset = 0;
-        gl.bindBuffer(gl.ARRAY_BUFFER, buffers.normal);
-        gl.vertexAttribPointer(
-            programInfo.attribLocations.vertexNormal,
+        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, buffer);
+        this.gl.vertexAttribPointer(
+            program.attribLocations.vertexNormal,
             numComponents,
             type,
             normalize,
             stride,
             offset);
-        gl.enableVertexAttribArray(
-            programInfo.attribLocations.vertexNormal);
+        this.gl.enableVertexAttribArray(
+            program.attribLocations.vertexNormal);
     }
 
-    private setTextureBuffer(gl: WebGL2RenderingContext, buffers: Buffers, programInfo: Program) {
+    private setTextureBuffer(buffer: WebGLBuffer, program: TexturedProgram) {
         const numComponents = 2;
-        const type = gl.FLOAT;
+        const type = this.gl.FLOAT;
         const normalize = false;
         const stride = 0;
         const offset = 0;
-        gl.bindBuffer(gl.ARRAY_BUFFER, buffers.textureCoord);
-        gl.vertexAttribPointer(
-            programInfo.attribLocations.textureCoord,
+        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, buffer);
+        this.gl.vertexAttribPointer(
+            program.attribLocations.textureCoord,
             numComponents,
             type,
             normalize,
             stride,
             offset);
-        gl.enableVertexAttribArray(
-            programInfo.attribLocations.textureCoord);
+        this.gl.enableVertexAttribArray(
+            program.attribLocations.textureCoord);
     }
 
     private isPowerOf2(value: number) {
         return (value & (value - 1)) === 0;
     }
 
-    private drawFps(time: number, lastTime: number, ticks: number) {
-        if (ticks % 10 === 0) {
-            //@ts-ignore
-            document.querySelector("#fps").innerHTML = (1000 / (time - lastTime)).toFixed(2);
-        }
-    }
+    private drawMaterials(prim: SolarMeshPrimitive, program: TexturedProgram) {
+        const gl = this.gl;
+        let mat = prim.materials[0];
+        if ("imageData" in mat) {
+            const image = mat.imageData as ImageBitmap;
+            gl.bindTexture(gl.TEXTURE_2D, mat.texture as WebGLTexture);
+            gl.texImage2D(
+                gl.TEXTURE_2D,
+                0,
+                gl.RGBA, // internal format
+                gl.RGBA, // src format
+                gl.UNSIGNED_BYTE, //src type
+                image
+            );
 
-    private loadTexture(items: SolarObj3d[], gl: WebGL2RenderingContext) {
-        let textures = [];
-        for (let item of items) {
-            const texture = gl.createTexture();
-            gl.bindTexture(gl.TEXTURE_2D, texture);
-            const level = 0;
-            const internalFormat = gl.RGBA;
-            const width = 1;
-            const height = 1;
-            const border = 0;
-            const srcFormat = gl.RGBA;
-            const srcType = gl.UNSIGNED_BYTE;
-            const pixel = new Uint8Array([0, 0, 255, 255]);  // opaque blue
-            gl.texImage2D(gl.TEXTURE_2D, level, internalFormat,
-                width, height, border, srcFormat, srcType,
-                pixel);
-
-            if (item.image !== undefined) {
-                const image = item.image as ImageBitmap;
-                gl.bindTexture(gl.TEXTURE_2D, texture);
-                gl.texImage2D(gl.TEXTURE_2D, level, internalFormat,
-                    srcFormat, srcType, image);
-
-                if (this.isPowerOf2(image.width) && this.isPowerOf2(image.height)) {
-                    // Yes, it's a power of 2. Generate mips.
-                    gl.generateMipmap(gl.TEXTURE_2D);
-                } else {
-                    // No, it's not a power of 2. Turn of mips and set
-                    // wrapping to clamp to edge
-                    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-                    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-                    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-                }
+            if (this.isPowerOf2(image.width) && this.isPowerOf2(image.height)) {
+                // Yes, it's a power of 2. Generate mips.
+                gl.generateMipmap(gl.TEXTURE_2D);
+            } else {
+                // No, it's not a power of 2. Turn of mips and set
+                // wrapping to clamp to edge
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
             }
-            textures.push(texture)
         }
 
-        return textures;
+        this.setTextureBuffer(prim.buffers?.texCoords[0] as WebGLBuffer, program as TexturedProgram)
     }
 
     private render(time: number) {
-        this.clear(this.gl)
-        // if (leftDown) xTranslationValue -= 0.5
-        // if (rightDown) xTranslationValue += 0.5
-        // if (upDown) yTranslationValue += 0.5
-        // if (downDown) yTranslationValue -= 0.5
-        //
-        // const {projectionMatrix, modelViewMatrix, normalMatrix} = this.createMatrices(this.gl)
-        //
-        // mat4.translate(projectionMatrix,     // destination matrix
-        //     projectionMatrix,     // matrix to translate
-        //     [-0.0, 0.0, zLocation]);  // amount to translate
-        // mat4.rotate(projectionMatrix,  // destination matrix
-        //     projectionMatrix,  // matrix to rotate
-        //     yRotation / 15,     // amount to rotate in radians
-        //     [1, 0, 0]);       // axis to rotate around (Z)
-        // mat4.rotate(projectionMatrix,  // destination matrix
-        //     projectionMatrix,  // matrix to rotate
-        //     xRotation / 15,// amount to rotate in radians
-        //     [0, 1, 0]);       // axis to rotate around (X)
-        //
-        // mat4.translate(modelViewMatrix,
-        //     modelViewMatrix,
-        //     [xTranslationValue, yTranslationValue, 0.0]);
-        //
-        //
-        // for (let i = 0; i < buffers.length; i++) {
-        //     gl.useProgram(programInfo.program);
-        //     setPositionBuffer(meshes[i], gl, buffers[i], programInfo)
-        //     setColorBuffer(gl, buffers[i], programInfo)
-        //     setTextureBuffer(gl, buffers[i], programInfo)
-        //     setNormalBuffer(gl, buffers[i], programInfo)
-        //
-        //     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buffers[i].indices);
-        //
-        //     gl.uniformMatrix4fv(
-        //         programInfo.uniformLocations.projectionMatrix,
-        //         false,
-        //         projectionMatrix);
-        //     gl.uniformMatrix4fv(
-        //         programInfo.uniformLocations.modelViewMatrix,
-        //         false,
-        //         modelViewMatrix);
-        //     gl.uniformMatrix4fv(
-        //         programInfo.uniformLocations.normalMatrix,
-        //         false,
-        //         normalMatrix);
-        //
-        //     const vertexCount = meshes[i].indices.length;
-        //     const type = gl.UNSIGNED_SHORT;
-        //     const offset = 0;
-        //     gl.drawElements(gl.TRIANGLES, vertexCount, type, offset);
-        // }
-        //
-        // drawFps(time, lastTime, ticks)
-        // lastTime = time
-        // ticks += 1
-        // if (ticks > 5) ticks = 0;
-        // if (running) {
-        //     requestAnimationFrame(run)
-        // }
-        requestAnimationFrame(this.render)
+        const gl = this.gl;
+        this.clear(gl)
+
+        for(let mesh of this.meshes) {
+            // camera matrix
+            let projectionMatrix = this.createProjectionMatrix(gl)
+
+            mat4.translate(projectionMatrix,     // destination matrix
+                projectionMatrix,     // matrix to translate
+                [this.camera.translation[0], this.camera.translation[1], this.camera.translation[2]]);  // amount to translate
+
+            mat4.rotate(projectionMatrix,  // destination matrix
+                projectionMatrix,  // matrix to rotate
+                this.camera.rotation[0] * .5,     // amount to rotate in radians
+                [1, 0, 0]);       // axis to rotate around (Z)
+
+            mat4.rotate(projectionMatrix,  // destination matrix
+                projectionMatrix,  // matrix to rotate
+                this.camera.rotation[1] * .5,// amount to rotate in radians
+                [0, 1, 0]);       // axis to rotate around (X)
+
+            mat4.rotate(projectionMatrix,  // destination matrix
+                projectionMatrix,  // matrix to rotate
+                this.camera.rotation[2] * .5,// amount to rotate in radians
+                [0, 0, 1]);       // axis to rotate around (X)
+
+
+            const modelViewMatrix = mat4.create()
+
+            mat4.translate(modelViewMatrix,
+                modelViewMatrix,
+                [mesh.location.x, mesh.location.y, mesh.location.z]);
+
+            mat4.rotate(modelViewMatrix,  // destination matrix
+                modelViewMatrix,  // matrix to rotate
+                mesh.rotation.y * .5,     // amount to rotate in radians
+                [1, 0, 0]);       // axis to rotate around (Z)
+
+            mat4.rotate(modelViewMatrix,  // destination matrix
+                modelViewMatrix,  // matrix to rotate
+                mesh.rotation.x * .5,// amount to rotate in radians
+                [0, 1, 0]);       // axis to rotate around (X)
+
+            mat4.rotate(modelViewMatrix,  // destination matrix
+                modelViewMatrix,  // matrix to rotate
+                mesh.rotation.z * .5,// amount to rotate in radians
+                [0, 0, 1]);       // axis to rotate around (X)
+
+            for (let i = 0; i < mesh.primitives.length; i++) {
+                const prim = mesh.primitives[i];
+                if (prim.program === undefined) continue;
+
+                let program = prim.program;
+
+                gl.useProgram(program.program);
+                this.setPositionBuffer(prim, prim.buffers?.position as WebGLBuffer, program)
+
+                const normalMatrix = mat4.create();
+                mat4.invert(normalMatrix, modelViewMatrix);
+                mat4.transpose(normalMatrix, normalMatrix);
+
+                this.setNormalBuffer(prim.buffers?.normal as WebGLBuffer, program)
+                gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, prim.buffers?.indices as WebGLBuffer);
+
+                this.drawMaterials(prim, program as TexturedProgram)
+
+                gl.uniformMatrix4fv(
+                    program.uniformLocations.projectionMatrix,
+                    false,
+                    projectionMatrix);
+
+                gl.uniformMatrix4fv(
+                    program.uniformLocations.modelViewMatrix,
+                    false,
+                    modelViewMatrix);
+
+                gl.uniformMatrix4fv(
+                    program.uniformLocations.normalMatrix,
+                    false,
+                    normalMatrix);
+
+                const vertexCount = mesh.primitives[i].indices.length;
+                const type = gl.UNSIGNED_SHORT;
+                const offset = 0;
+                gl.drawElements(gl.TRIANGLES, vertexCount, type, offset);
+            }
+        }
+
+        if ("tick" in this.eventListeners) {
+            this.eventListeners["tick"](time)
+        }
+
+        if (this.running) {
+            requestAnimationFrame(this.render.bind(this))
+        }
     }
 
     start() {
-        requestAnimationFrame(this.render)
+        this.running = true;
+        this.render(0)
     }
 }
 

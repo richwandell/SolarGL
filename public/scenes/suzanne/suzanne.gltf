@@ -1,6 +1,6 @@
 {
     "asset" : {
-        "generator" : "Khronos glTF Blender I/O v1.2.75",
+        "generator" : "Khronos glTF Blender I/O v1.4.40",
         "version" : "2.0"
     },
     "extensionsUsed" : [
@@ -13,7 +13,8 @@
             "nodes" : [
                 0,
                 1,
-                2
+                2,
+                3
             ]
         }
     ],
@@ -35,20 +36,24 @@
         {
             "name" : "Camera",
             "rotation" : [
-                0.483536034822464,
-                0.33687159419059753,
-                -0.20870360732078552,
-                0.7804827094078064
+                0.7070896029472351,
+                -0.004936499986797571,
+                0.004936500918120146,
+                0.7070894837379456
             ],
             "translation" : [
-                7.358891487121582,
-                4.958309173583984,
-                6.925790786743164
+                -0.2710704505443573,
+                -0.03411836922168732,
+                23.286836624145508
             ]
         },
         {
             "mesh" : 0,
             "name" : "Suzanne"
+        },
+        {
+            "mesh" : 1,
+            "name" : "Plane"
         }
     ],
     "materials" : [
@@ -62,7 +67,23 @@
                 "baseColorTexture" : {
                     "index" : 0,
                     "texCoord" : 0
-                }
+                },
+                "metallicFactor" : 0,
+                "roughnessFactor" : 0.9
+            }
+        },
+        {
+            "doubleSided" : true,
+            "name" : "Material",
+            "pbrMetallicRoughness" : {
+                "baseColorFactor" : [
+                    0.8000000715255737,
+                    0.007635294925421476,
+                    0.025053711608052254,
+                    1
+                ],
+                "metallicFactor" : 0,
+                "roughnessFactor" : 0.5
             }
         }
     ],
@@ -80,10 +101,25 @@
                     "material" : 0
                 }
             ]
+        },
+        {
+            "name" : "Plane",
+            "primitives" : [
+                {
+                    "attributes" : {
+                        "POSITION" : 4,
+                        "NORMAL" : 5,
+                        "TEXCOORD_0" : 6
+                    },
+                    "indices" : 7,
+                    "material" : 1
+                }
+            ]
         }
     ],
     "textures" : [
         {
+            "sampler" : 0,
             "source" : 0
         }
     ],
@@ -98,7 +134,7 @@
         {
             "bufferView" : 0,
             "componentType" : 5126,
-            "count" : 1968,
+            "count" : 1966,
             "max" : [
                 1.3671875,
                 0.984375,
@@ -114,13 +150,13 @@
         {
             "bufferView" : 1,
             "componentType" : 5126,
-            "count" : 1968,
+            "count" : 1966,
             "type" : "VEC3"
         },
         {
             "bufferView" : 2,
             "componentType" : 5126,
-            "count" : 1968,
+            "count" : 1966,
             "type" : "VEC2"
         },
         {
@@ -128,33 +164,93 @@
             "componentType" : 5123,
             "count" : 2904,
             "type" : "SCALAR"
+        },
+        {
+            "bufferView" : 4,
+            "componentType" : 5126,
+            "count" : 24,
+            "max" : [
+                7.404308795928955,
+                -1.3212170600891113,
+                7.404308795928955
+            ],
+            "min" : [
+                -7.404308795928955,
+                -2.3256492614746094,
+                -7.404308795928955
+            ],
+            "type" : "VEC3"
+        },
+        {
+            "bufferView" : 5,
+            "componentType" : 5126,
+            "count" : 24,
+            "type" : "VEC3"
+        },
+        {
+            "bufferView" : 6,
+            "componentType" : 5126,
+            "count" : 24,
+            "type" : "VEC2"
+        },
+        {
+            "bufferView" : 7,
+            "componentType" : 5123,
+            "count" : 36,
+            "type" : "SCALAR"
         }
     ],
     "bufferViews" : [
         {
             "buffer" : 0,
-            "byteLength" : 23616,
+            "byteLength" : 23592,
             "byteOffset" : 0
         },
         {
             "buffer" : 0,
-            "byteLength" : 23616,
-            "byteOffset" : 23616
+            "byteLength" : 23592,
+            "byteOffset" : 23592
         },
         {
             "buffer" : 0,
-            "byteLength" : 15744,
-            "byteOffset" : 47232
+            "byteLength" : 15728,
+            "byteOffset" : 47184
         },
         {
             "buffer" : 0,
             "byteLength" : 5808,
-            "byteOffset" : 62976
+            "byteOffset" : 62912
+        },
+        {
+            "buffer" : 0,
+            "byteLength" : 288,
+            "byteOffset" : 68720
+        },
+        {
+            "buffer" : 0,
+            "byteLength" : 288,
+            "byteOffset" : 69008
+        },
+        {
+            "buffer" : 0,
+            "byteLength" : 192,
+            "byteOffset" : 69296
+        },
+        {
+            "buffer" : 0,
+            "byteLength" : 72,
+            "byteOffset" : 69488
+        }
+    ],
+    "samplers" : [
+        {
+            "magFilter" : 9729,
+            "minFilter" : 9986
         }
     ],
     "buffers" : [
         {
-            "byteLength" : 68784,
+            "byteLength" : 69560,
             "uri" : "suzanne.bin"
         }
     ]

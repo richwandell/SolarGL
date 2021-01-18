@@ -3,14 +3,13 @@ export type Buffers = {
     color: WebGLBuffer,
     indices: WebGLBuffer,
     normal: WebGLBuffer,
-    textureCoord: WebGLBuffer
+    texCoords: WebGLBuffer[]
 }
 
-export type Program = {
+export type TexturedProgram = {
     program: WebGLProgram,
     attribLocations: {
         vertexPosition: number,
-        vertexColor: number,
         vertexNormal: number,
         textureCoord: number
     },
@@ -22,23 +21,54 @@ export type Program = {
     }
 }
 
-export type Material = {
+export type ColoredProgram = {
+    program: WebGLProgram,
+    attribLocations: {
+        vertexPosition: number,
+        vertexColor: number,
+        vertexNormal: number
+    },
+    uniformLocations: {
+        projectionMatrix: WebGLUniformLocation,
+        modelViewMatrix: WebGLUniformLocation,
+        normalMatrix: WebGLUniformLocation
+    }
+}
+
+export type TextureMaterial = {
     textureCoords: number[],
-    imageData: ImageData | undefined
+    imageData: ImageBitmap | undefined,
+    texture: WebGLTexture | undefined
+}
+
+export type ColorMaterial = {
+    baseColor: number[],
+    metalicFactor: number,
+    roughnessFactor: number,
+    texture: WebGLTexture | undefined
 }
 
 export type SolarMeshPrimitive = {
+    shader: string,
     dim: number,
     faces: number[],
     colors: number[],
     indices: number[],
     normals: number[],
-    materials: Material[],
-    buffers: Buffers | undefined
+    materials: (TextureMaterial|ColorMaterial)[],
+    buffers: Buffers | undefined,
+    program: ColoredProgram | TexturedProgram | undefined
 }
 
 export type SolarMesh = {
     id: string,
     name: string,
     primitives: SolarMeshPrimitive[]
+}
+
+export type SolarObject = {
+    id: string,
+    name: string,
+    rotation: number[],
+    translation: number[]
 }

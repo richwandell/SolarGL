@@ -2,7 +2,6 @@ import SolarMesh from "../SolarMesh";
 
 export default function createBuffers(items: SolarMesh[], gl: WebGL2RenderingContext) {
     for (let mesh of items) {
-        let buffers = [];
         for (let prim of mesh.primitives) {
             const positionBuffer = gl.createBuffer();
             gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
@@ -22,20 +21,21 @@ export default function createBuffers(items: SolarMesh[], gl: WebGL2RenderingCon
 
             let texCoords: WebGLBuffer[] = [];
             for (let mat of prim.materials) {
-                const textureCoordBuffer = gl.createBuffer();
-                gl.bindBuffer(gl.ARRAY_BUFFER, textureCoordBuffer);
-                gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(mat.textureCoords), gl.STATIC_DRAW);
-                texCoords.push(textureCoordBuffer as WebGLBuffer)
+                if ("textureCoords" in mat) {
+                    const textureCoordBuffer = gl.createBuffer();
+                    gl.bindBuffer(gl.ARRAY_BUFFER, textureCoordBuffer);
+                    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(mat.textureCoords), gl.STATIC_DRAW);
+                    texCoords.push(textureCoordBuffer as WebGLBuffer)
+                }
             }
 
-            buffers.push({
+            prim.buffers = {
                 position: positionBuffer as WebGLBuffer,
                 color: colorBuffer as WebGLBuffer,
                 indices: indexBuffer as WebGLBuffer,
                 normal: normalBuffer as WebGLBuffer,
                 texCoords: texCoords as WebGLBuffer[]
-            })
+            }
         }
-        mesh.buffers = buffers;
     }
 }
