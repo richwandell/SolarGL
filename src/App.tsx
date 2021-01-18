@@ -130,6 +130,7 @@ function App() {
         return () => {
             app.destroy()
         }
+    // eslint-disable-next-line
     }, [canvasRef, selectedScene])
 
     return (

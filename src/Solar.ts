@@ -1,4 +1,4 @@
-import {mat4, ReadonlyQuat, ReadonlyVec3, quat} from "gl-matrix";
+import {mat4} from "gl-matrix";
 import {ColoredProgram, SolarMeshPrimitive, SolarObject, TexturedProgram} from "./types";
 import {load} from "@loaders.gl/core";
 import {GLBLoader, GLTFLoader} from "@loaders.gl/gltf/dist/es6";
