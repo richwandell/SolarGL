@@ -95,7 +95,7 @@ export const Cube: SolarMeshPrimitive = {
         -1.0, 0.0, 0.0
     ],
     program: undefined,
-    shader: "textured"
+    shader: "colored"
 }
 
 // export type SolarObj2d = {

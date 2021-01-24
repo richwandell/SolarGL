@@ -14,7 +14,7 @@ import {Cube} from "./objs";
 
 class Solar extends Listener {
 
-    private readonly canvas: HTMLCanvasElement;
+    public readonly canvas: HTMLCanvasElement;
     private readonly gl: WebGL2RenderingContext;
     private meshes: SolarMesh[] = [];
     private eventListeners: {[key: string]: Function} = {}
@@ -115,6 +115,9 @@ class Solar extends Listener {
 
     public addLight(light: SolarLight) {
         this.lights.push(light)
+        const meshes = this.lights.map(x => x.mesh)
+        createPrograms(meshes, this.gl)
+        createBuffers(meshes, this.gl)
     }
 
     public getCamera(name?: string|null): SolarObject {
@@ -282,8 +285,82 @@ class Solar extends Listener {
         this.setTextureBuffer(prim.buffers?.texCoords[0] as WebGLBuffer, program as TexturedProgram)
     }
 
-    private render(time: number) {
+    private renderMesh(mesh: SolarMesh, projectionMatrix: mat4, ambientLight: vec3, directionalVector: number[]) {
         const gl = this.gl;
+        const modelViewMatrix = this.createModelViewMatrix(mesh)
+
+        for (let i = 0; i < mesh.primitives.length; i++) {
+            const prim = mesh.primitives[i];
+            if (prim.program === undefined) continue;
+
+            let program = prim.program;
+
+
+            gl.useProgram(program.program);
+            this.setPositionBuffer(prim, prim.buffers?.position as WebGLBuffer, program)
+
+            const normalMatrix = mat4.create();
+            mat4.invert(normalMatrix, modelViewMatrix);
+            mat4.transpose(normalMatrix, normalMatrix);
+
+            this.setNormalBuffer(prim.buffers?.normal as WebGLBuffer, program)
+            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, prim.buffers?.indices as WebGLBuffer);
+
+            if (prim.shader === "textured") {
+                let program = prim.program as TexturedProgram;
+                this.drawMaterials(prim, program)
+                gl.uniform3fv(program.uniformLocations.ambientLight, ambientLight)
+                gl.uniform3fv(program.uniformLocations.directionalVector, directionalVector)
+            } else {
+                let program = prim.program as ColoredProgram;
+                const numComponents = 4;
+                const type = gl.FLOAT;
+                const normalize = false;
+                const stride = 0;
+                const offset = 0;
+                gl.bindBuffer(gl.ARRAY_BUFFER, prim.buffers?.color as WebGLBuffer);
+                gl.vertexAttribPointer(
+                    program.attribLocations.vertexColor,
+                    numComponents,
+                    type,
+                    normalize,
+                    stride,
+                    offset);
+                gl.enableVertexAttribArray(
+                    program.attribLocations.vertexColor);
+            }
+
+            gl.uniformMatrix4fv(
+                program.uniformLocations.projectionMatrix,
+                false,
+                projectionMatrix);
+
+            gl.uniformMatrix4fv(
+                program.uniformLocations.modelViewMatrix,
+                false,
+                modelViewMatrix);
+
+            gl.uniformMatrix4fv(
+                program.uniformLocations.normalMatrix,
+                false,
+                normalMatrix);
+
+            gl.enable(gl.SAMPLE_COVERAGE);
+            gl.enable(gl.DEPTH_TEST)
+            gl.enable(gl.BLEND);
+            gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+            gl.enable(gl.CULL_FACE);
+            gl.cullFace(gl.BACK);
+            gl.sampleCoverage(1.0, false);
+
+            const vertexCount = mesh.primitives[i].indices.length;
+            const type = gl.UNSIGNED_SHORT;
+            const offset = 0;
+            gl.drawElements(gl.TRIANGLES, vertexCount, type, offset);
+        }
+    }
+
+    private render(time: number) {
         this.clear()
 
         // camera matrix
@@ -296,64 +373,17 @@ class Solar extends Listener {
         let directionalVector = [0.85, 0.8, 0]
 
         for(let light of this.lights) {
-            directionalVector[0] = light.location.x;
+            directionalVector[0] = light.location.x * 100;
             directionalVector[1] = this.canvas.height - light.location.y;
             // directionalVector[2] = light.location.z;
         }
 
+        for(let light of this.lights) {
+            this.renderMesh(light.mesh, projectionMatrix, ambientLight, directionalVector)
+        }
+
         for(let mesh of this.meshes) {
-            const modelViewMatrix = this.createModelViewMatrix(mesh)
-
-            for (let i = 0; i < mesh.primitives.length; i++) {
-                const prim = mesh.primitives[i];
-                if (prim.program === undefined) continue;
-
-                let program = prim.program;
-
-                gl.useProgram(program.program);
-                this.setPositionBuffer(prim, prim.buffers?.position as WebGLBuffer, program)
-
-                const normalMatrix = mat4.create();
-                mat4.invert(normalMatrix, modelViewMatrix);
-                mat4.transpose(normalMatrix, normalMatrix);
-
-                this.setNormalBuffer(prim.buffers?.normal as WebGLBuffer, program)
-                gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, prim.buffers?.indices as WebGLBuffer);
-
-                this.drawMaterials(prim, program as TexturedProgram)
-
-                gl.uniform3fv(program.uniformLocations.ambientLight, ambientLight)
-
-                gl.uniform3fv(program.uniformLocations.directionalVector, directionalVector)
-
-                gl.uniformMatrix4fv(
-                    program.uniformLocations.projectionMatrix,
-                    false,
-                    projectionMatrix);
-
-                gl.uniformMatrix4fv(
-                    program.uniformLocations.modelViewMatrix,
-                    false,
-                    modelViewMatrix);
-
-                gl.uniformMatrix4fv(
-                    program.uniformLocations.normalMatrix,
-                    false,
-                    normalMatrix);
-
-                gl.enable(gl.SAMPLE_COVERAGE);
-                gl.enable(gl.DEPTH_TEST)
-                gl.enable(gl.BLEND);
-                gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
-                gl.enable(gl.CULL_FACE);
-                gl.cullFace(gl.BACK);
-                gl.sampleCoverage(1.0, false);
-
-                const vertexCount = mesh.primitives[i].indices.length;
-                const type = gl.UNSIGNED_SHORT;
-                const offset = 0;
-                gl.drawElements(gl.TRIANGLES, vertexCount, type, offset);
-            }
+            this.renderMesh(mesh, projectionMatrix, ambientLight, directionalVector)
         }
 
         if ("tick" in this.eventListeners) {

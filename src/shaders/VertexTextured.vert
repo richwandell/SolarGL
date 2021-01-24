@@ -1,0 +1,26 @@
+attribute vec4 aVertexPosition;
+attribute vec3 aVertexNormal;
+attribute vec2 aTextureCoord;
+
+uniform mat4 uNormalMatrix;
+uniform mat4 uModelViewMatrix;
+uniform mat4 uProjectionMatrix;
+uniform vec3 uAmbientLight;
+uniform vec3 uDirectionalVector;
+
+varying highp vec2 vTextureCoord;
+varying highp vec3 vLighting;
+
+void main(void) {
+    gl_Position = uProjectionMatrix * uModelViewMatrix * aVertexPosition;
+
+    vTextureCoord = aTextureCoord;
+
+    // Apply lighting effect
+    highp vec3 directionalLightColor = vec3(1, 1, 1);
+    highp vec3 directionalVector = normalize(uDirectionalVector);
+    highp vec4 transformedNormal = uNormalMatrix * vec4(aVertexNormal, 1.0);
+
+    highp float directional = max(dot(transformedNormal.xyz, directionalVector), 0.0);
+    vLighting = uAmbientLight + (directionalLightColor * directional);
+}

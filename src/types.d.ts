@@ -59,7 +59,7 @@ export type SolarMeshPrimitive = {
     normals: number[],
     materials: (TextureMaterial|ColorMaterial)[],
     buffers: Buffers | undefined,
-    program: TexturedProgram | undefined
+    program: ColoredProgram | TexturedProgram | undefined
 }
 
 export type SolarObject = {
@@ -68,3 +68,7 @@ export type SolarObject = {
     rotation: number[],
     translation: number[]
 }
+
+
+
+

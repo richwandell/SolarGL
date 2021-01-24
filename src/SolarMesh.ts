@@ -8,7 +8,7 @@ class SolarMesh {
     public primitives: SolarMeshPrimitive[];
 
     public location: {x: number, y: number, z: number} = {x: 0, y: 0, z: 0}
-    public rotation: {x: number, y: number, z: number} = {x: 0, y: 0, z: 0}
+    public rotation: {x: number, y: number, z: number, w: number} = {x: 0, y: 0, z: 0, w: 0}
     private solar: Solar;
 
     constructor(solar: Solar, id: string, name: string, primitives: SolarMeshPrimitive[]) {

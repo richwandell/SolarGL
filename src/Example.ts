@@ -118,8 +118,15 @@ class Example extends Solar {
                     this.character.rotation.x -= distance;
                 }
             } else {
-                light.location.x = event.clientX;
-                light.location.y = event.clientY;
+                let xPerc = event.clientX / this.canvas.width;
+                let xPos = -7 + xPerc * 20;
+
+                light.location.x = xPos;
+
+                let yPerc = event.clientY / this.canvas.height;
+                let yPos = 7 - yPerc * 20;
+
+                light.location.y = yPos;
             }
 
         })

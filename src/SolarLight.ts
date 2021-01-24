@@ -3,11 +3,8 @@ import Solar from "./Solar";
 import {Cube} from "./objs";
 
 class SolarLight {
-
-    private mesh: SolarMesh
+    public mesh: SolarMesh
     private solar: Solar;
-    public location: { x: number; y: number; z: number };
-    public rotation: { x: number; y: number; z: number; w: number };
 
     constructor(
         solar: Solar,
@@ -17,8 +14,24 @@ class SolarLight {
     ) {
         this.mesh = mesh;
         this.solar = solar;
-        this.location = location;
-        this.rotation = rotation;
+        this.mesh.location = location;
+        this.mesh.rotation = rotation;
+    }
+
+    get location(): { x: number; y: number; z: number } {
+        return this.mesh.location;
+    }
+
+    set location(value: { x: number; y: number; z: number }) {
+        this.mesh.location = value;
+    }
+
+    get rotation(): { x: number; y: number; z: number; w: number } {
+        return this.mesh.rotation;
+    }
+
+    set rotation(value: { x: number; y: number; z: number; w: number }) {
+        this.mesh.rotation = value;
     }
 }
 
