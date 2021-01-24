@@ -62,6 +62,8 @@ function createTextured(gl: WebGL2RenderingContext): TexturedProgram {
             modelViewMatrix: gl.getUniformLocation(shaderProgram, 'uModelViewMatrix') as WebGLUniformLocation,
             normalMatrix: gl.getUniformLocation(shaderProgram, 'uNormalMatrix') as WebGLUniformLocation,
             uSampler: gl.getUniformLocation(shaderProgram, 'uSampler') as WebGLUniformLocation,
+            ambientLight: gl.getUniformLocation(shaderProgram, 'uAmbientLight') as WebGLUniformLocation,
+            directionalVector: gl.getUniformLocation(shaderProgram, 'uDirectionalVector') as WebGLUniformLocation,
         },
     };
 }
@@ -70,11 +72,7 @@ function createTextured(gl: WebGL2RenderingContext): TexturedProgram {
 export default function createPrograms(items: SolarMesh[], gl: WebGL2RenderingContext) {
     for (let item of items) {
         for (let primative of item.primitives) {
-            if (primative.shader === "colored") {
-                primative.program = createColored(gl)
-            } else {
-                primative.program = createTextured(gl)
-            }
+            primative.program = createTextured(gl)
         }
     }
 }

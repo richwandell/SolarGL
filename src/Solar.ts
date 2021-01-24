@@ -1,4 +1,4 @@
-import {mat4} from "gl-matrix";
+import {mat4, vec3} from "gl-matrix";
 import {ColoredProgram, SolarMeshPrimitive, SolarObject, TexturedProgram} from "./types";
 import {load} from "@loaders.gl/core";
 import {GLBLoader, GLTFLoader} from "@loaders.gl/gltf/dist/es6";
@@ -8,6 +8,8 @@ import createBuffers from "./functions/createBuffers";
 import loadTextures from "./functions/loadTextures";
 import createPrograms from "./functions/createPrograms";
 import Listener from "./Listener";
+import SolarLight from "./SolarLight";
+import {Cube} from "./objs";
 
 
 class Solar extends Listener {
@@ -18,7 +20,8 @@ class Solar extends Listener {
     private eventListeners: {[key: string]: Function} = {}
     private running: boolean = false;
     private objects: SolarObject[] = [];
-    private camera: SolarObject;
+    protected camera: SolarObject;
+    protected lights: SolarLight[] = [];
 
     constructor(canvas: HTMLCanvasElement) {
         super(canvas as HTMLElement);
@@ -72,6 +75,48 @@ class Solar extends Listener {
         return this.meshes.find(x => x.name === name) as SolarMesh
     }
 
+    public getLight(name: string): SolarLight {
+        let lightObj = this.objects.find(x => x.name === name) as SolarObject
+
+        if (lightObj !== undefined) {
+            return new SolarLight(
+                this,
+                new SolarMesh(this, "cube", "cube", [Cube]),
+                {
+                    x: lightObj.translation[0],
+                    y: lightObj.translation[1],
+                    z: lightObj.translation[2]
+                },
+                {
+                    x: lightObj.rotation[0],
+                    y: lightObj.rotation[1],
+                    z: lightObj.rotation[2],
+                    w: lightObj.rotation[3],
+                }
+            )
+        } else {
+            return new SolarLight(
+                this,
+                new SolarMesh(this, "cube", "cube", [Cube]),
+                {
+                    x: 0,
+                    y: 0,
+                    z: 0
+                },
+                {
+                    x: 0,
+                    y: 0,
+                    z: 0,
+                    w: 0,
+                }
+            )
+        }
+    }
+
+    public addLight(light: SolarLight) {
+        this.lights.push(light)
+    }
+
     public getCamera(name?: string|null): SolarObject {
         let cam = this.objects.find(x => x.name === name) as SolarObject
 
@@ -85,25 +130,69 @@ class Solar extends Listener {
         this.camera = object;
     }
 
-    private clear(gl: WebGL2RenderingContext) {
-        gl.clearColor(0.0, 0.0, 0.0, 1.0)
-        gl.clearDepth(1.0)
-        gl.enable(gl.DEPTH_TEST)
-        gl.depthFunc(gl.LEQUAL)
-        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+    private clear() {
+        this.gl.clearColor(0.0, 0.0, 0.0, 1.0)
+        this.gl.clearDepth(1.0)
+        this.gl.enable(this.gl.DEPTH_TEST)
+        this.gl.depthFunc(this.gl.LEQUAL)
+        this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT)
     }
 
-    private createProjectionMatrix(gl: WebGL2RenderingContext) {
+    private createProjectionMatrix() {
         const fieldOfView = 45 * Math.PI / 180;   // in radians
         // @ts-ignore
-        const aspect = gl.canvas.clientWidth / gl.canvas.clientHeight;
+        const aspect = this.gl.canvas.clientWidth / this.gl.canvas.clientHeight;
         const zNear = 0.1;
         const zFar = 100.0;
         const projectionMatrix = mat4.create()
         mat4.perspective(projectionMatrix, fieldOfView, aspect, zNear, zFar)
+
+        mat4.translate(projectionMatrix,     // destination matrix
+            projectionMatrix,     // matrix to translate
+            [this.camera.translation[0], this.camera.translation[1], this.camera.translation[2]]);  // amount to translate
+
+        mat4.rotate(projectionMatrix,  // destination matrix
+            projectionMatrix,  // matrix to rotate
+            this.camera.rotation[0] * .5,     // amount to rotate in radians
+            [1, 0, 0]);       // axis to rotate around (Z)
+
+        mat4.rotate(projectionMatrix,  // destination matrix
+            projectionMatrix,  // matrix to rotate
+            this.camera.rotation[1] * .5,// amount to rotate in radians
+            [0, 1, 0]);       // axis to rotate around (X)
+
+        mat4.rotate(projectionMatrix,  // destination matrix
+            projectionMatrix,  // matrix to rotate
+            this.camera.rotation[2] * .5,// amount to rotate in radians
+            [0, 0, 1]);       // axis to rotate around (X)
+
+
         return projectionMatrix;
     }
 
+    private createModelViewMatrix(mesh: SolarMesh) {
+        const modelViewMatrix = mat4.create()
+
+        mat4.translate(modelViewMatrix,
+            modelViewMatrix,
+            [mesh.location.x, mesh.location.y, mesh.location.z]);
+
+        mat4.rotate(modelViewMatrix,  // destination matrix
+            modelViewMatrix,  // matrix to rotate
+            mesh.rotation.y * .5,     // amount to rotate in radians
+            [1, 0, 0]);       // axis to rotate around (Z)
+
+        mat4.rotate(modelViewMatrix,  // destination matrix
+            modelViewMatrix,  // matrix to rotate
+            mesh.rotation.x * .5,// amount to rotate in radians
+            [0, 1, 0]);       // axis to rotate around (X)
+
+        mat4.rotate(modelViewMatrix,  // destination matrix
+            modelViewMatrix,  // matrix to rotate
+            mesh.rotation.z * .5,// amount to rotate in radians
+            [0, 0, 1]);       // axis to rotate around (X)
+        return modelViewMatrix;
+    }
 
     private setPositionBuffer(item: SolarMeshPrimitive, buffer: WebGLBuffer, program: ColoredProgram|TexturedProgram) {
         const numComponents = item.dim;
@@ -195,52 +284,25 @@ class Solar extends Listener {
 
     private render(time: number) {
         const gl = this.gl;
-        this.clear(gl)
+        this.clear()
+
+        // camera matrix
+        const projectionMatrix = this.createProjectionMatrix()
+
+        // const ambientLight = vec3.fromValues(0.3, 0.3, 0.3)
+        // const directionalVector = vec3.fromValues(0.85, 0.8, 0.75)
+
+        const ambientLight = vec3.fromValues(0.1, 0.1, 0.1)
+        let directionalVector = [0.85, 0.8, 0]
+
+        for(let light of this.lights) {
+            directionalVector[0] = light.location.x;
+            directionalVector[1] = this.canvas.height - light.location.y;
+            // directionalVector[2] = light.location.z;
+        }
 
         for(let mesh of this.meshes) {
-            // camera matrix
-            let projectionMatrix = this.createProjectionMatrix(gl)
-
-            mat4.translate(projectionMatrix,     // destination matrix
-                projectionMatrix,     // matrix to translate
-                [this.camera.translation[0], this.camera.translation[1], this.camera.translation[2]]);  // amount to translate
-
-            mat4.rotate(projectionMatrix,  // destination matrix
-                projectionMatrix,  // matrix to rotate
-                this.camera.rotation[0] * .5,     // amount to rotate in radians
-                [1, 0, 0]);       // axis to rotate around (Z)
-
-            mat4.rotate(projectionMatrix,  // destination matrix
-                projectionMatrix,  // matrix to rotate
-                this.camera.rotation[1] * .5,// amount to rotate in radians
-                [0, 1, 0]);       // axis to rotate around (X)
-
-            mat4.rotate(projectionMatrix,  // destination matrix
-                projectionMatrix,  // matrix to rotate
-                this.camera.rotation[2] * .5,// amount to rotate in radians
-                [0, 0, 1]);       // axis to rotate around (X)
-
-
-            const modelViewMatrix = mat4.create()
-
-            mat4.translate(modelViewMatrix,
-                modelViewMatrix,
-                [mesh.location.x, mesh.location.y, mesh.location.z]);
-
-            mat4.rotate(modelViewMatrix,  // destination matrix
-                modelViewMatrix,  // matrix to rotate
-                mesh.rotation.y * .5,     // amount to rotate in radians
-                [1, 0, 0]);       // axis to rotate around (Z)
-
-            mat4.rotate(modelViewMatrix,  // destination matrix
-                modelViewMatrix,  // matrix to rotate
-                mesh.rotation.x * .5,// amount to rotate in radians
-                [0, 1, 0]);       // axis to rotate around (X)
-
-            mat4.rotate(modelViewMatrix,  // destination matrix
-                modelViewMatrix,  // matrix to rotate
-                mesh.rotation.z * .5,// amount to rotate in radians
-                [0, 0, 1]);       // axis to rotate around (X)
+            const modelViewMatrix = this.createModelViewMatrix(mesh)
 
             for (let i = 0; i < mesh.primitives.length; i++) {
                 const prim = mesh.primitives[i];
@@ -259,6 +321,10 @@ class Solar extends Listener {
                 gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, prim.buffers?.indices as WebGLBuffer);
 
                 this.drawMaterials(prim, program as TexturedProgram)
+
+                gl.uniform3fv(program.uniformLocations.ambientLight, ambientLight)
+
+                gl.uniform3fv(program.uniformLocations.directionalVector, directionalVector)
 
                 gl.uniformMatrix4fv(
                     program.uniformLocations.projectionMatrix,

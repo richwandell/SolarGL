@@ -17,7 +17,9 @@ export type TexturedProgram = {
         projectionMatrix: WebGLUniformLocation,
         modelViewMatrix: WebGLUniformLocation,
         normalMatrix: WebGLUniformLocation,
-        uSampler: WebGLUniformLocation
+        uSampler: WebGLUniformLocation,
+        ambientLight: WebGLUniformLocation,
+        directionalVector: WebGLUniformLocation
     }
 }
 
@@ -57,13 +59,7 @@ export type SolarMeshPrimitive = {
     normals: number[],
     materials: (TextureMaterial|ColorMaterial)[],
     buffers: Buffers | undefined,
-    program: ColoredProgram | TexturedProgram | undefined
-}
-
-export type SolarMesh = {
-    id: string,
-    name: string,
-    primitives: SolarMeshPrimitive[]
+    program: TexturedProgram | undefined
 }
 
 export type SolarObject = {
